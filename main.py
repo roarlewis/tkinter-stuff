@@ -10,8 +10,10 @@ class EpicApp:
     filename = ""
     directory = ""
 
+
     tint_on = False
 
+    echo_on = False
     echo_frames = 10
     echo_decay = 0.5
 
@@ -149,7 +151,9 @@ class EpicApp:
         def process_frame(frame):
             if self.distort_on:
                 frame = apply_warp(frame)
-            frame = apply_color_effect(self,frame)
+            if self.tint_on:
+                frame = apply_color_effect(self, frame)
+
             frame = apply_echo_effect(self,frame)
             return frame
 
