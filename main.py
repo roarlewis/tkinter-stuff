@@ -8,21 +8,19 @@ from tkinter import filedialog
 class EpicApp:
 
     filename = ""
-
+    directory = ""
 
     tint_on = False
 
     echo_frames = 10
     echo_decay = 0.5
 
-    distort_xamp = 10
-    distort_yamp = 10
     distort_on = False
 
     save_name = "new_video"
 
     def __init__(self):
-        global red_scale,blue_scale,green_scale
+        global red_scale,blue_scale,green_scale, x_amp_distort_scale, y_amp_distort_scale, user_file_name_box
         self.root = tk.Tk()
         self.root.geometry("800x500")
         self.root.title("LewisVideoSynth")
@@ -30,11 +28,14 @@ class EpicApp:
                           width=1000)
         header.pack(padx=20, pady=10)
 
-        import_button = tk.Button(self.root,text="import file", font = ('DevLys 010', 10),command = self.import_file)
-        import_button.pack(padx=10,pady=10)
+        import_button = tk.Button(self.root,text="IMPORT FILE", font = ('DevLys 010', 25),bg="lightblue",fg="darkblue",command = self.import_file)
+        import_button.place(x=600,y=350)
 
-        distort_on_button = tk.Checkbutton(self.root,text="distortion", font = ('DevLys 010', 10), command=self.change_distort_state)
-        distort_on_button.place(x=0,y=400)
+        directory_button = tk.Button(self.root, text = "SAVE TO", font = ('DevLys 010', 25),bg="lightblue",fg="darkblue",command = self.select_directory)
+        directory_button.place(x=600,y=400)
+
+        distort_on_button = tk.Checkbutton(self.root,text="distortion", font = ('DevLys 010', 25),bg="lightblue",fg="darkblue",command=self.change_distort_state)
+        distort_on_button.place(x=30,y=450)
 
         tint_on_button = tk.Checkbutton(self.root,text = "tint", font = ('DevLys 010', 25),bg="lightblue",fg="darkblue", command=self.change_tint_state)
         tint_on_button.place(x=30,y = 250)
@@ -56,17 +57,51 @@ class EpicApp:
         blue_label = tk.Label(self.root,text="B", font=('DevLys 010', 20),fg="blue")
         blue_label.place(x=150, y=210)
 
-        test_button = tk.Button(self.root,text="test",font = ('DevLys 010', 5),command = self.change_video)
-        test_button.place(x=750,y=450)
+        test_button = tk.Button(self.root,text="MAKE VIDEO",font = ('DevLys 010', 25),command = self.change_video, fg="darkblue", bg="lightblue")
+        test_button.place(x=600,y=450)
+
+        x_amp_distort_scale = tk.Scale(self.root, from_=10,to=0, resolution=0.1)
+        y_amp_distort_scale = tk.Scale(self.root, from_=10, to=0, resolution=0.1)
+
+        x_amp_distort_scale.place(x=30, y=350)
+        y_amp_distort_scale.place(x=80, y=350)
+
+        save_as_label = tk.Label(self.root, text="SAVE AS:", font=('DevLys 010', 25), bg="lightblue",
+                                           fg="darkblue")
+        save_as_label.place(x=225, y=450)
+
+        save_as_label = tk.Label(self.root, text=".mp4", font=('DevLys 010', 25), bg="lightblue",
+                                 fg="darkblue")
+        save_as_label.place(x=530, y=450)
+
+        def is_valid_char(char):
+            # Define what constitutes a valid character for file names
+            valid_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_."
+            return char in valid_chars
+
+        def validate_entry(char, entry_text):
+            if is_valid_char(char):
+                return True
+            else:
+                return False
+
+        vcmd = (self.root.register(validate_entry), '%S', '%P')
+        user_file_name_box = tk.Entry(self.root, font=(18),validate="key", validatecommand=vcmd)
+        user_file_name_box.place(width = 170, height = 35, x = 350, y = 450)
+
+
 
         self.root.mainloop()
 
     def import_file(self):
         self.root.filename = filedialog.askopenfilename(title="select a file")
 
+    def select_directory(self):
+        self.root.directory = filedialog.askdirectory(title = "choose where u want it saved")
+
     def change_video(self):
         previous_frames = deque(maxlen=self.echo_frames)
-        def apply_warp(self,frame):
+        def apply_warp(frame):
             # Get frame dimensions
             h, w, _ = frame.shape
 
@@ -74,8 +109,8 @@ class EpicApp:
             x, y = np.meshgrid(np.arange(w), np.arange(h))
 
             # Apply warp/distortion effect (e.g., sinusoidal distortion)
-            distorted_x = x + self.distort_xamp * np.sin(2 * np.pi * y / 30.0)
-            distorted_y = y + self.distort_yamp * np.cos(2 * np.pi * x / 20.0)
+            distorted_x = x + x_amp_distort_scale.get() * np.sin(2 * np.pi * y / 30.0)
+            distorted_y = y + y_amp_distort_scale.get() * np.cos(2 * np.pi * x / 20.0)
 
             # Clip distorted coordinates to frame dimensions
             distorted_x = np.clip(distorted_x, 0, w - 1)
@@ -107,23 +142,20 @@ class EpicApp:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             # Convert back to BGR to apply color tint
             gray_bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-            # Apply a red tint by adding to the red channel
 
             tinted = gray_bgr + np.array([red_scale.get(), green_scale.get(), blue_scale.get()], dtype=np.uint8)
             return tinted
 
         def process_frame(frame):
             if self.distort_on:
-                frame = apply_warp(self,frame)
+                frame = apply_warp(frame)
             frame = apply_color_effect(self,frame)
             frame = apply_echo_effect(self,frame)
             return frame
 
-        # Rest of the script remains the same
-        # input_video_path = self.root.filename
-
-        input_video_path = '/Users/lewislibbywatt/Downloads/IMG_7683.MOV'
-        output_video_path = '/Users/lewislibbywatt/Desktop/silly_video_stuff/natur.mp4'
+        input_video_path = self.root.filename
+        # input_video_path = '/Users/lewislibbywatt/Downloads/IMG_7683.MOV'
+        output_video_path = self.root.directory + '/' + user_file_name_box.get() + '.mp4'
 
         clip = VideoFileClip(input_video_path)
         modified_clip = clip.fl_image(process_frame)
